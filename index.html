@@ -1,0 +1,690 @@
+<title>What's for Dinner?</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one phone-width column, kitchen order tickets as the main object, tab bar pinned to the bottom */
+:root{
+  --bg:#EEF2EE; --surface:#FFFFFF; --ticket:#FFFDF7; --ink:#1C2420; --muted:#5D6A62; --line:#D7DFD9;
+  --accent:#D2412A; --accent-soft:#F8E1DB; --accent-ink:#FFFFFF; --herb:#2E6A4E; --herb-soft:#DCEDE3; --gold:#A86A00;
+  --display:"Bricolage Grotesque", "Avenir Next", system-ui, sans-serif;
+  --body:"Inter", system-ui, -apple-system, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#111613; --surface:#1A201C; --ticket:#1E2420; --ink:#E8EEEA; --muted:#97A59C; --line:#2C3530;
+  --accent:#EF6A4F; --accent-soft:#3A221C; --accent-ink:#1A0E0B; --herb:#74C29A; --herb-soft:#1D3127; --gold:#E3B341; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#111613; --surface:#1A201C; --ticket:#1E2420; --ink:#E8EEEA; --muted:#97A59C; --line:#2C3530;
+  --accent:#EF6A4F; --accent-soft:#3A221C; --accent-ink:#1A0E0B; --herb:#74C29A; --herb-soft:#1D3127; --gold:#E3B341; color-scheme:dark}
+
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:480px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 calc(96px + env(safe-area-inset-bottom,0px))}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding-block:16px 12px;display:flex;align-items:baseline;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
+header.top h1{font:800 24px/1.1 var(--display);letter-spacing:-.02em;margin:0}
+header.top h1 span{color:var(--accent)}
+.sync{font:500 11px var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}
+.sync.on i{background:var(--herb)}
+
+section.view{display:flex;flex-direction:column;gap:16px;padding-top:20px}
+h2{font:800 28px/1.1 var(--display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+h3{font:800 18px/1.2 var(--display);margin:0}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+.label{font:600 11px var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:8px}
+
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}
+.seg button{border:0;background:transparent;border-radius:9px;padding:9px 8px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 8px 6px 12px;font-weight:600}
+.chip.plain{padding:6px 12px}
+.chip button{border:0;background:transparent;color:var(--muted);width:22px;height:22px;border-radius:50%;line-height:1}
+.chip button:hover{background:var(--accent-soft);color:var(--accent)}
+button.chip[aria-pressed="true"],.chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip.done{border-color:var(--herb);color:var(--herb)}
+.addrow{display:flex;gap:8px;flex-wrap:wrap}
+.addrow input{flex:1;min-width:140px;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px}
+.addrow select,.field select{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px}
+.field{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.field select{flex:0 1 60%}
+.btn{border-radius:12px;padding:12px 18px;font-weight:600;background:var(--surface);border:1px solid var(--line)}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-size:16px;padding:16px 20px}
+.btn.primary:active{transform:scale(.98)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn.ghost{background:transparent}
+.btn.sm{padding:8px 12px;font-size:14px;border-radius:10px}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row > .btn{flex:1}
+
+.tickets{display:flex;flex-direction:column;gap:10px}
+.ticket{position:relative;background:var(--ticket);border:1px solid var(--line);border-radius:6px;padding:14px 16px 14px 20px;display:flex;align-items:center;gap:12px;text-align:left;width:100%}
+.ticket::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;border-left:2px dotted var(--line)}
+.ticket .no{font:500 12px var(--mono);color:var(--muted);min-width:2.5em}
+.ticket .name{flex:1;min-width:0;font:600 18px/1.3 var(--display)}
+.ticket .sub{display:block;font:500 12px var(--body);color:var(--muted)}
+.tag{font:500 11px var(--mono);text-transform:uppercase;letter-spacing:.05em;color:var(--herb);background:var(--herb-soft);border-radius:4px;padding:2px 6px;white-space:nowrap}
+.tag.out{color:var(--accent);background:var(--accent-soft)}
+.fav{color:var(--gold)}
+button.ticket:hover{border-color:var(--accent)}
+.ticket.struck{opacity:.55;cursor:default}
+.ticket.struck .name{text-decoration:line-through;text-decoration-color:var(--accent);text-decoration-thickness:3px}
+button.ticket.vetoed{border-color:var(--accent);background:var(--accent-soft)}
+button.ticket.vetoed .name{text-decoration:line-through;text-decoration-color:var(--accent);text-decoration-thickness:3px}
+.ticket .by{font:500 11px var(--mono);color:var(--accent);white-space:nowrap}
+.count{font:500 12px var(--mono);white-space:nowrap;color:var(--muted)}
+.count.hot{color:var(--accent)}
+
+.turn{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--ink);color:var(--bg);border-radius:12px;padding:14px 16px}
+.turn b{font:800 20px var(--display)}
+.turn small{display:block;opacity:.75;font-size:12px}
+.turn .btn{background:transparent;color:inherit;border-color:currentColor;padding:8px 12px}
+
+.winner{background:var(--ticket);border:2px solid var(--accent);border-radius:8px;padding:28px 20px;text-align:center;display:flex;flex-direction:column;gap:8px}
+.winner .name{font:800 34px/1.1 var(--display);letter-spacing:-.02em;text-wrap:balance}
+.winner .meta{font:500 12px var(--mono);color:var(--muted)}
+
+.week{display:flex;flex-direction:column;gap:8px}
+.day{display:grid;grid-template-columns:64px 1fr;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.day.today{border-color:var(--accent)}
+.day .d{font:500 12px var(--mono);text-transform:uppercase;color:var(--muted);line-height:1.3}
+.day .d b{display:block;font:800 18px var(--display);color:var(--ink);text-transform:none}
+.day.today .d b{color:var(--accent)}
+.day input{min-width:0;width:100%;border:0;background:transparent;font-weight:500;font-size:16px;padding:6px 0}
+.day input:disabled{opacity:1;color:var(--ink)}
+.day input::placeholder{color:var(--muted);opacity:.6}
+.day .new{font-weight:600;color:var(--herb)}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.meal-list{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.meal{display:flex;align-items:center;gap:6px;padding:8px 8px 8px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+.meal:first-child{border-top:0}
+.meal .mname{flex:1;min-width:120px;border:0;background:transparent;text-align:left;padding:4px 0;font-weight:500}
+.meal .mname small{display:block;color:var(--muted);font-size:12px;font-weight:400}
+.ibtn{border:1px solid var(--line);background:transparent;border-radius:8px;min-width:32px;height:32px;padding:0 6px;color:var(--muted)}
+.ibtn[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.ibtn.q[aria-pressed="true"]{color:var(--herb);border-color:var(--herb)}
+.tagbtn{font:500 11px var(--mono);text-transform:uppercase;border:1px solid var(--line);background:transparent;border-radius:8px;height:32px;padding:0 8px;color:var(--herb)}
+.tagbtn.out{color:var(--accent)}
+.x{border:0;background:transparent;color:var(--muted);width:32px;height:32px;border-radius:50%}
+.x:hover{color:var(--accent);background:var(--accent-soft)}
+.editor{flex-basis:100%;display:flex;flex-direction:column;gap:8px;padding:4px 4px 8px 0}
+.editor textarea{width:100%;min-height:96px;border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:8px 10px;resize:vertical}
+.toggle{display:flex;align-items:center;gap:10px;font-weight:500}
+.toggle input{width:20px;height:20px;accent-color:var(--accent)}
+
+.shop{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.shop label{display:flex;align-items:center;gap:12px;padding:11px 12px;border-top:1px solid var(--line);cursor:pointer}
+.shop label:first-child{border-top:0}
+.shop input{width:20px;height:20px;accent-color:var(--herb);flex:none}
+.shop .it{flex:1;min-width:0}
+.shop .it small{display:block;color:var(--muted);font-size:12px}
+.shop .got .it{text-decoration:line-through;color:var(--muted)}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+.stat b{display:block;font:800 18px/1.2 var(--display);overflow-wrap:anywhere}
+.stat span{font-size:12px;color:var(--muted)}
+.when{font:500 12px var(--mono);color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:24px;text-align:center;color:var(--muted)}
+.note{font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0}
+.note.warn{border-color:var(--gold)}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+nav.tabs .in{max-width:480px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav.tabs button{border:0;background:transparent;padding:10px 2px 12px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--muted);font:600 10px var(--body);letter-spacing:.04em;text-transform:uppercase}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-current="page"]{color:var(--accent)}
+
+.toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;z-index:20;max-width:calc(100% - 32px)}
+@keyframes pop{0%{transform:scale(.94);opacity:0}100%{transform:scale(1);opacity:1}}
+.winner{animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+@media (prefers-reduced-motion: reduce){.winner{animation:none}}
+@media (max-width:380px){.stats{grid-template-columns:1fr 1fr}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>What's for <span>Dinner?</span></h1>
+    <div class="sync" id="sync"><i></i><span>This device</span></div>
+  </header>
+  <main id="app"></main>
+</div>
+
+<nav class="tabs" aria-label="Sections"><div class="in">
+  <button data-tab="decide"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h10M4 17h6"/><path d="M15 15l5 5M20 15l-5 5"/></svg>Decide</button>
+  <button data-tab="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>Week</button>
+  <button data-tab="shop"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 4h2l2.5 11h11L21 7H6.5"/><circle cx="9" cy="19.5" r="1.5"/><circle cx="17" cy="19.5" r="1.5"/></svg>Shop</button>
+  <button data-tab="meals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7 3v8a2 2 0 0 0 4 0V3M9 11v10M17 3c-2 0-3 3-3 7h3v11"/></svg>Meals</button>
+  <button data-tab="history"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>History</button>
+</div></nav>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const MAX_VETOES = 2;
+// Used only when the shared store is unavailable (signed out, preview).
+const STARTER_MEALS = [
+  ["🌮 Tacos","cook",1],["🍕 Pizza","takeout",0],["🍝 Spaghetti & Meatballs","cook",0],["🍲 Thai Curry","takeout",0],
+  ["🍔 Smash Burgers","cook",1],["🥗 Grilled Chicken Caesar","cook",1],["🍣 Sushi","takeout",0],["🍳 Breakfast for Dinner","cook",1],
+  ["🥢 Chicken Stir Fry","cook",1],["🥩 Steak & Potatoes","cook",0],["🥪 Grilled Cheese & Soup","cook",1],["🌯 Burrito Bowls","cook",1],
+  ["🍛 Indian Curry","takeout",0],["🍗 Roast Chicken & Veggies","cook",0],["🥟 Dumplings & Rice","cook",0]
+].map(([name,tag,q],i)=>({id:"m"+i,name,tag,quick:!!q,fav:false,ingredients:[],order:i}));
+
+const ls = {get(k,d){try{return localStorage.getItem(k)??d}catch(e){return d}}, set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+const S = {
+  db:null, live:false, canPlan:true,
+  tab: ls.get("wfd-tab","decide"), mode: ls.get("wfd-mode","one"), me: ls.get("wfd-me",""),
+  meals: STARTER_MEALS.slice(), plan:{}, logs:[], members:[],
+  rules:{takeoutDays:[], quickWeeknights:false},
+  shop:{checked:[], extras:[]},
+  round:null, votes:[], myVetoes:[],
+  day:null, game:null, preview:null, editing:null,
+  uid:null, isOwner:false, activity:[], names:{}
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const mealBy = name => S.meals.find(m=>m.name===name);
+const tagOf = name => (mealBy(name)||{}).tag || "cook";
+function toast(msg){const t=$("#toast");t.textContent=msg;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,2400)}
+function todayName(){return DAYS[(new Date().getDay()+6)%7]}
+function monday(){const d=new Date();d.setHours(0,0,0,0);d.setDate(d.getDate()-((d.getDay()+6)%7));return d}
+function mondayKey(){const d=monday();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`}
+function weekDates(){const mon=monday();return DAYS.map((_,i)=>{const x=new Date(mon);x.setDate(mon.getDate()+i);return x})}
+function daysAgo(iso){return Math.floor((Date.now()-new Date(iso))/864e5)}
+function norm(s){return String(s||"").toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim()}
+function hexKey(s){return Array.from(new TextEncoder().encode(s)).map(b=>b.toString(16).padStart(2,"0")).join("").slice(0,80)}
+S.day = todayName();
+
+/* ---------- Picking: rules, recency, weighting ---------- */
+function ruleOK(m,day){
+  const r=S.rules;
+  if(r.takeoutDays.length && m.tag==="takeout" && !r.takeoutDays.includes(day)) return false;
+  if(r.quickWeeknights && DAYS.indexOf(day)<4 && m.tag!=="takeout" && !m.quick) return false;
+  return true;
+}
+function ruleSummary(day){
+  const r=S.rules, out=[];
+  if(r.takeoutDays.length) out.push(r.takeoutDays.includes(day)?"takeout allowed":"no takeout");
+  if(r.quickWeeknights && DAYS.indexOf(day)<4) out.push("quick meals only");
+  return out.join(" · ");
+}
+function weight(m){
+  const picks=S.logs.filter(l=>l.meal===m.name && daysAgo(l.date)<90).length;
+  return (m.fav?2.5:1) * (1 + 0.2*Math.min(picks,5));
+}
+function candidates(day, need, exclude=new Set()){
+  const recent=new Set(S.logs.filter(l=>daysAgo(l.date)<5).map(l=>l.meal));
+  const planned=new Set(DAYS.filter(d=>d!==day).map(d=>S.plan[d]).filter(Boolean));
+  const base=S.meals.filter(m=>!exclude.has(m.name));
+  const tiers=[
+    m=>ruleOK(m,day)&&!recent.has(m.name)&&!planned.has(m.name),
+    m=>ruleOK(m,day)&&!recent.has(m.name),
+    m=>ruleOK(m,day)];
+  for(const t of tiers){const p=base.filter(t); if(p.length>=need) return p}
+  for(const t of tiers){const p=base.filter(t); if(p.length>=Math.min(need,2)) return p}
+  return base;
+}
+function pickWeighted(pool,n){
+  const bag=pool.slice(), out=[];
+  while(out.length<n && bag.length){
+    const tot=bag.reduce((s,m)=>s+weight(m),0); let r=Math.random()*tot, i=0;
+    for(;i<bag.length-1;i++){r-=weight(bag[i]); if(r<=0) break}
+    out.push(bag.splice(i,1)[0]);
+  }
+  return out.map(m=>m.name);
+}
+
+/* ---------- Writes ---------- */
+async function write(fn,fail){ if(!S.db) return true; try{await fn(S.db);return true}catch(e){toast(fail);return false} }
+let actQ=Promise.resolve();
+function track(what){
+  if(!S.db||!S.uid) return;
+  actQ=actQ.then(async()=>{
+    const ref=S.db.doc("activity/"+S.uid), s=await ref.get(), d=s.exists?s.data():{};
+    const ev=[...(d.events||[]),{t:new Date().toISOString(),what,as:S.me||""}].slice(-300);
+    await ref.set({uid:S.uid,events:ev,lastSeen:ev[ev.length-1].t,count:(d.count||0)+1});
+  }).catch(()=>{});
+}
+async function logMeal(meal,voters,day,id){
+  const entry={meal,voters,day,date:new Date().toISOString()};
+  if(!S.db){S.logs.unshift({id:id||"l"+Date.now(),...entry});return}
+  await write(db=> id? db.doc("logs/"+id).set(entry) : db.collection("logs").add(entry),"Couldn't save to history");
+}
+async function savePlan(next){
+  if(!S.canPlan){toast("Only an editor can change the week");return false}
+  const prev=S.plan; S.plan={...next,weekOf:mondayKey()};
+  const ok=await write(db=>db.doc("plan/week").set(S.plan),"Couldn't save the week. Only editors can change it.");
+  if(!ok){S.plan=prev} else {const ch=DAYS.filter(d=>(prev[d]||"")!==(S.plan[d]||"")); if(ch.length) track("Week: "+ch.map(d=>`${d.slice(0,3)} → ${S.plan[d]||"cleared"}`).join(", "))}
+  render(); return ok;
+}
+const setPlanDay=(day,val)=>savePlan({...(planIsCurrent()?S.plan:{}),[day]:val});
+function planIsCurrent(){return !S.plan.weekOf || S.plan.weekOf===mondayKey()}
+async function saveMembers(list){
+  S.members=list; track("Changed household names"); render(); setTimeout(()=>{const i=$("#member-name");i&&i.focus()},0);
+  await write(db=>db.doc("settings/household").set({members:list}),"Couldn't save names");
+}
+async function saveRules(r){S.rules=r;track("Changed weekday rules");render();await write(db=>db.doc("settings/rules").set(r),"Couldn't save rules")}
+async function saveShop(s){S.shop=s;render();await write(db=>db.doc("shopping/list").set(s),"Couldn't save the list")}
+async function updateMeal(id,patch){
+  const m=S.meals.find(x=>x.id===id); if(!m) return;
+  track("Edited "+m.name);
+  if(!S.db){Object.assign(m,patch);render();return}
+  await write(db=>db.doc("meals/"+id).update(patch),"Couldn't update that meal");
+}
+
+/* ---------- Decide: pass one phone ---------- */
+function deal(){
+  if(S.meals.length<2){toast("Add at least two meals first");return}
+  const opts=pickWeighted(candidates(S.day,5),5);
+  const voters=S.members.length?S.members.slice():["You"];
+  S.game={options:opts,struck:{},history:[],order:voters,turn:0,done:false,day:S.day};
+  track(`Dealt 5 meals for ${S.day}`);
+  render();
+}
+function strike(name){
+  const g=S.game; if(!g||g.done||g.struck[name]) return;
+  g.struck[name]=g.order[g.turn%g.order.length]; g.history.push(name); g.turn++;
+  const left=g.options.filter(o=>!g.struck[o]);
+  if(left.length===1){g.done=true;g.winner=left[0];logMeal(g.winner,g.order.join(", "),g.day);track(`Decided ${g.winner} for ${g.day}`)}
+  render();
+}
+function undo(){const g=S.game;if(!g||!g.history.length||g.done)return;delete g.struck[g.history.pop()];g.turn--;render()}
+
+/* ---------- Decide: everyone's phone ---------- */
+const roundOpen=()=>S.round&&S.round.status==="open";
+const roundVotes=()=>S.round?S.votes.filter(v=>v.round===S.round.id):[];
+function tally(){
+  const r=S.round, votes=roundVotes(), c={};
+  r.options.forEach(o=>c[o]={n:0,by:[]});
+  votes.forEach(v=>(v.vetoes||[]).forEach(o=>{if(c[o]){c[o].n++;c[o].by.push(v.voter)}}));
+  return c;
+}
+function roundWinner(){
+  const r=S.round, c=tally();
+  return r.options.slice().sort((a,b)=>c[a].n-c[b].n || weight(mealBy(b)||{})-weight(mealBy(a)||{}) || r.options.indexOf(a)-r.options.indexOf(b))[0];
+}
+async function startRound(){
+  if(!S.db){toast("Phone voting needs the shared version of this page");return}
+  if(S.members.length<2){toast("Add at least two people first");return}
+  const id="r"+Date.now();
+  const round={id,options:pickWeighted(candidates(S.day,5),5),voters:S.members.slice(),day:S.day,status:"open",created:new Date().toISOString()};
+  S.myVetoes=[];
+  if(await write(db=>db.doc("rounds/current").set(round),"Couldn't start the vote")){
+    track(`Started a phone vote for ${S.day}`);
+    S.votes.filter(v=>v.round!==id).forEach(v=>S.db.doc("votes/"+v.id).delete().catch(()=>{}));
+  }
+}
+async function submitVote(){
+  const r=S.round; if(!roundOpen()||!S.me) return;
+  track(`Voted with ${S.myVetoes.length} veto${S.myVetoes.length===1?"":"es"}`);
+  await write(db=>db.doc("votes/"+r.id+"_"+hexKey(S.me)).set({round:r.id,voter:S.me,vetoes:S.myVetoes.slice(),at:new Date().toISOString()}),"Couldn't send your vote");
+}
+async function maybeFinish(){
+  const r=S.round; if(!roundOpen()) return;
+  const voted=new Set(roundVotes().map(v=>v.voter));
+  if(!r.voters.every(v=>voted.has(v))) return;
+  const winner=roundWinner();
+  await write(db=>db.doc("rounds/current").update({status:"done",winner}),"Couldn't close the vote");
+  await logMeal(winner,r.voters.join(", "),r.day,r.id);
+}
+
+/* ---------- Views ---------- */
+function mealTicket(o,i,extra=""){
+  const m=mealBy(o)||{};
+  return `<span class="no">#${String(i+1).padStart(2,"0")}</span><span class="name">${m.fav?'<span class="fav" aria-label="Favourite">★</span> ':""}${esc(o)}</span>${extra||`<span class="tag ${m.tag==="takeout"?"out":""}">${m.tag==="takeout"?"Takeout":m.quick?"Quick":"Cook"}</span>`}`;
+}
+function daySelect(id,val){return `<select id="${id}" aria-label="Day">${DAYS.map(d=>`<option value="${d}" ${d===val?"selected":""}>${d===todayName()?"Tonight · "+d:d}</option>`).join("")}</select>`}
+function winnerBlock(name,meta,day){
+  const planned=S.plan[day]===name && planIsCurrent();
+  return `<div class="winner"><div class="label">${day===todayName()?"Tonight":day}</div><div class="name">${esc(name)}</div><div class="meta">${esc(meta)}</div></div>
+  ${S.canPlan?`<button class="btn" data-act="assign" data-v="${esc(name)}" data-day="${day}" ${planned?"disabled":""}>${planned?"On the week for "+day:"Put on "+day}</button>`:`<p class="note">Only an editor can add this to the week.</p>`}`;
+}
+
+function viewDecide(){
+  const seg=`<div class="seg" role="group" aria-label="Voting mode">
+    <button data-act="mode" data-v="one" aria-pressed="${S.mode==="one"}">Pass one phone</button>
+    <button data-act="mode" data-v="phones" aria-pressed="${S.mode==="phones"}">Everyone's phone</button></div>`;
+  if(S.mode==="phones") return viewPhones(seg);
+  const g=S.game;
+  if(!g){
+    const rs=ruleSummary(S.day);
+    return `<section class="view">
+      <h2>End the debate.</h2>
+      ${seg}
+      <p class="lede">Deal five meals. Take turns crossing one off. The last ticket standing is dinner. Anything eaten in the last five days sits out, and favourites come up more often.</p>
+      <div class="field"><span class="label">Deciding for</span>${daySelect("deal-day",S.day)}</div>
+      ${rs?`<p class="note">${esc(S.day)} rule: ${esc(rs)}</p>`:""}
+      ${membersBlock()}
+      <button class="btn primary" data-act="deal">Deal 5 meals</button>
+      ${S.members.length===1?`<p class="note">With one voter, you strike four in a row. Add more names to take turns.</p>`:""}
+    </section>`;
+  }
+  const left=g.options.filter(o=>!g.struck[o]).length, who=g.order[g.turn%g.order.length];
+  const tickets=g.options.map((o,i)=>{
+    const s=g.struck[o], inner=mealTicket(o,i,s?`<span class="by">✕ ${esc(s)}</span>`:"");
+    return (s||g.done)?`<div class="ticket ${s?"struck":""}">${inner}</div>`:`<button class="ticket" data-act="strike" data-v="${esc(o)}">${inner}</button>`;
+  }).join("");
+  if(g.done) return `<section class="view">
+      ${winnerBlock(g.winner,"Decided by "+g.order.join(" · ")+" · saved to history",g.day)}
+      <div class="tickets">${tickets}</div>
+      <div class="row"><button class="btn primary" data-act="deal">Deal again</button><button class="btn" data-act="reset">Done</button></div>
+    </section>`;
+  return `<section class="view">
+    <div class="turn"><div><small>${g.day} · ${left-1} more to cross off</small><b>${esc(who)}, strike one</b></div>${g.history.length?`<button class="btn" data-act="undo">Undo</button>`:""}</div>
+    <div class="tickets">${tickets}</div>
+    <div class="row"><button class="btn ghost" data-act="reset">Cancel</button><button class="btn ghost" data-act="deal">Re-deal</button></div>
+  </section>`;
+}
+function membersBlock(){
+  return `<div class="stack"><div class="label">Who's at the table</div>
+    <div class="chips">${S.members.map(m=>`<span class="chip">${esc(m)}<button data-act="rm-member" data-v="${esc(m)}" aria-label="Remove ${esc(m)}">✕</button></span>`).join("")||`<span class="lede">No one yet. Add each person who gets a say.</span>`}</div>
+    <form class="addrow" data-form="member"><input id="member-name" placeholder="Add a name" maxlength="24" autocomplete="off"><button class="btn">Add</button></form></div>`;
+}
+function viewPhones(seg){
+  if(!S.db) return `<section class="view"><h2>Vote from your own phones.</h2>${seg}<p class="note warn">Phone voting needs the shared page. Open it signed in to claude.ai, from the link you were sent.</p></section>`;
+  const r=S.round;
+  if(!r || r.status==="cancelled" || (r.status==="done" && S.dismissed===r.id)){
+    const rs=ruleSummary(S.day);
+    return `<section class="view">
+      <h2>Vote from your own phones.</h2>${seg}
+      <p class="lede">Start a vote, then everyone opens this page on their own phone. Each person can veto up to ${MAX_VETOES} of the five meals. Once everyone has voted, the meal with the fewest vetoes wins.</p>
+      <div class="field"><span class="label">Deciding for</span>${daySelect("deal-day",S.day)}</div>
+      ${rs?`<p class="note">${esc(S.day)} rule: ${esc(rs)}</p>`:""}
+      ${membersBlock()}
+      <button class="btn primary" data-act="start-round" ${S.members.length<2?"disabled":""}>Start a vote for ${S.members.length} people</button>
+    </section>`;
+  }
+  const votes=roundVotes(), voted=new Set(votes.map(v=>v.voter));
+  const progress=`<div class="chips">${r.voters.map(v=>`<span class="chip plain ${voted.has(v)?"done":""}">${voted.has(v)?"✓ ":""}${esc(v)}${v===S.me?" (you)":""}</span>`).join("")}</div>`;
+  if(r.status==="done"){
+    const c=tally();
+    return `<section class="view">
+      ${winnerBlock(r.winner,"Fewest vetoes · "+r.voters.join(" · "),r.day)}
+      <div class="tickets">${r.options.map((o,i)=>`<div class="ticket ${o===r.winner?"":"struck"}">${mealTicket(o,i,`<span class="count ${c[o].n?"hot":""}">${c[o].n} veto${c[o].n===1?"":"es"}${c[o].by.length?"<br>"+esc(c[o].by.join(", ")):""}</span>`)}</div>`).join("")}</div>
+      <div class="row"><button class="btn primary" data-act="new-round">New vote</button></div>
+    </section>`;
+  }
+  if(!S.me || !r.voters.includes(S.me)) return `<section class="view">
+      <h2>Who's this phone?</h2>
+      <p class="lede">A vote is open for ${esc(r.day)}. Pick your name to cast your vetoes.</p>
+      <div class="chips">${r.voters.map(v=>`<button class="chip plain" data-act="me" data-v="${esc(v)}">${voted.has(v)?"✓ ":""}${esc(v)}</button>`).join("")}</div>
+      <button class="btn ghost" data-act="cancel-round">Cancel this vote</button>
+    </section>`;
+  const mine=votes.find(v=>v.voter===S.me);
+  if(mine){
+    const waiting=r.voters.filter(v=>!voted.has(v));
+    return `<section class="view">
+      <div class="turn"><div><small>${esc(r.day)} · your vote is in</small><b>Waiting on ${esc(waiting.join(", "))}</b></div><button class="btn" data-act="revote">Change</button></div>
+      ${progress}
+      <div class="tickets">${r.options.map((o,i)=>`<div class="ticket ${(mine.vetoes||[]).includes(o)?"struck":""}">${mealTicket(o,i,(mine.vetoes||[]).includes(o)?'<span class="by">✕ you</span>':"")}</div>`).join("")}</div>
+      <p class="note">Results appear on every phone the moment the last vote lands.</p>
+      <div class="row"><button class="btn ghost" data-act="not-me">Not ${esc(S.me)}?</button><button class="btn ghost" data-act="cancel-round">Cancel vote</button></div>
+    </section>`;
+  }
+  return `<section class="view">
+    <div class="turn"><div><small>${esc(r.day)} · tap up to ${MAX_VETOES} to veto</small><b>${esc(S.me)}, your vetoes</b></div></div>
+    ${progress}
+    <div class="tickets">${r.options.map((o,i)=>{const v=S.myVetoes.includes(o);return `<button class="ticket ${v?"vetoed":""}" data-act="veto" data-v="${esc(o)}" aria-pressed="${v}">${mealTicket(o,i,v?'<span class="by">✕ veto</span>':"")}</button>`}).join("")}</div>
+    <button class="btn primary" data-act="submit-vote">${S.myVetoes.length?`Send ${S.myVetoes.length} veto${S.myVetoes.length>1?"es":""}`:"I'm happy with all five"}</button>
+    <div class="row"><button class="btn ghost" data-act="not-me">Not ${esc(S.me)}?</button><button class="btn ghost" data-act="cancel-round">Cancel vote</button></div>
+  </section>`;
+}
+
+function viewWeek(){
+  const dates=weekDates(), t=todayName(), cur=planIsCurrent(), P=S.preview;
+  const dis=S.canPlan?"":"disabled";
+  const emptyDays=DAYS.filter(d=>!(cur&&S.plan[d]));
+  return `<section class="view">
+    <h2>Week of ${dates[0].toLocaleDateString([], {month:"short",day:"numeric"})}</h2>
+    ${!S.canPlan?`<p class="note">You can see the week, but only editors can change it. Ask Bianca.</p>`:`<p class="lede">Type a meal or a note like “leftovers”. Saves when you leave the field.</p>`}
+    ${!cur?`<p class="note warn">Showing last week's plan (week of ${esc(S.plan.weekOf)}). ${S.canPlan?'<button class="btn sm" data-act="fresh-week">Start this week fresh</button>':""}</p>`:""}
+    <datalist id="meal-names">${S.meals.map(m=>`<option value="${esc(m.name)}">`).join("")}</datalist>
+    <div class="week">${DAYS.map((d,i)=>{
+      const pv=P&&P[d];
+      return `<label class="day ${d===t?"today":""}" for="day-${d}">
+        <span class="d">${d.slice(0,3)}<b>${dates[i].getDate()}</b></span>
+        ${pv?`<span class="new">${esc(pv)} <span class="tag">new</span></span>`:`<input id="day-${d}" list="meal-names" data-day="${d}" value="${esc(S.plan[d]||"")}" placeholder="${S.canPlan?"Not planned":"—"}" ${dis}>`}
+      </label>`}).join("")}</div>
+    ${S.canPlan?(P?`<div class="row"><button class="btn primary" data-act="save-preview">Save ${Object.keys(P).length} picks</button></div>
+      <div class="row"><button class="btn" data-act="fill-week">Reshuffle</button><button class="btn ghost" data-act="cancel-preview">Cancel</button></div>`
+      :`<button class="btn primary" data-act="fill-week" ${emptyDays.length?"":"disabled"}>${emptyDays.length?`Pick for ${emptyDays.length} empty day${emptyDays.length>1?"s":""}`:"Every day is planned"}</button>`):""}
+    <div class="row"><button class="btn" data-act="copy-week">Copy week as text</button>${S.canPlan?`<button class="btn ghost" data-act="clear-week">Clear week</button>`:""}</div>
+  </section>`;
+}
+function fillWeek(){
+  const cur=planIsCurrent(), used=new Set(DAYS.map(d=>cur&&S.plan[d]).filter(Boolean)), P={};
+  DAYS.filter(d=>!(cur&&S.plan[d])).forEach(d=>{
+    const [m]=pickWeighted(candidates(d,1,used),1); if(m){P[d]=m;used.add(m)}
+  });
+  S.preview=P; render();
+}
+function weekText(){const dates=weekDates(),cur=planIsCurrent();return "Dinner this week\n"+DAYS.map((d,i)=>`${d.slice(0,3)} ${dates[i].getDate()}: ${(cur&&S.plan[d])||"—"}`).join("\n")}
+
+function shoppingItems(){
+  const items=new Map(); if(!planIsCurrent()) return [];
+  DAYS.forEach(d=>{
+    const txt=norm(S.plan[d]); if(!txt) return;
+    const m=S.meals.find(x=>{const n=norm(x.name);return n&&(txt.includes(n)||n.includes(txt))});
+    if(!m) return;
+    (m.ingredients||[]).forEach(raw=>{const k=raw.trim(); if(!k) return; const key=k.toLowerCase();
+      const e=items.get(key)||{name:k,days:[]}; e.days.push(d.slice(0,3)); items.set(key,e)});
+  });
+  S.shop.extras.forEach(x=>{const key=x.toLowerCase(); if(!items.has(key)) items.set(key,{name:x,days:[],extra:true})});
+  return [...items.values()].sort((a,b)=>a.name.localeCompare(b.name));
+}
+function viewShop(){
+  const items=shoppingItems(), got=new Set(S.shop.checked.map(s=>s.toLowerCase()));
+  const left=items.filter(i=>!got.has(i.name.toLowerCase())).length;
+  const missing=DAYS.filter(d=>planIsCurrent()&&S.plan[d]&&!(S.meals.find(x=>{const n=norm(x.name),t=norm(S.plan[d]);return n&&(t.includes(n)||n.includes(t))})||{ingredients:[]}).ingredients.length);
+  return `<section class="view">
+    <h2>Shopping list</h2>
+    <p class="lede">Built from this week's planned meals. Tick things off as you shop; everyone sees the same list.</p>
+    ${items.length?`<div class="label">${left} of ${items.length} left</div>
+    <div class="shop">${items.map((it,i)=>{const g=got.has(it.name.toLowerCase());return `<label class="${g?"got":""}" for="shop-${i}"><input type="checkbox" id="shop-${i}" data-shop="${esc(it.name)}" ${g?"checked":""}><span class="it">${esc(it.name)}<small>${it.extra?"Added by hand":esc(it.days.join(", "))}</small></span>${it.extra?`<button class="x" data-act="rm-extra" data-v="${esc(it.name)}" aria-label="Remove ${esc(it.name)}">✕</button>`:""}</label>`}).join("")}</div>`
+    :`<div class="empty">Nothing to buy yet. Plan some meals on the Week tab, and add ingredients to meals on the Meals tab.</div>`}
+    <form class="addrow" data-form="extra"><input id="extra-name" placeholder="Add an item, e.g. milk" maxlength="40" autocomplete="off"><button class="btn">Add</button></form>
+    ${missing.length?`<p class="note">No ingredients saved for: ${esc(missing.map(d=>S.plan[d]).join(", "))}. Add them on the Meals tab.</p>`:""}
+    <div class="row"><button class="btn" data-act="copy-shop" ${items.length?"":"disabled"}>Copy list</button><button class="btn ghost" data-act="clear-ticks" ${S.shop.checked.length?"":"disabled"}>Untick all</button></div>
+  </section>`;
+}
+
+function viewMeals(){
+  const r=S.rules;
+  return `<section class="view">
+    <h2>Meal pool</h2>
+    <p class="lede">${S.meals.length} meals the dealer draws from. ★ favourites come up more often. ⚡ marks a quick meal. Tap a meal to edit its ingredients.</p>
+    <div class="panel">
+      <h3>Weekday rules</h3>
+      <div class="stack"><span class="label">Takeout only on</span>
+        <div class="chips">${DAYS.map(d=>`<button class="chip plain" data-act="takeout-day" data-v="${d}" aria-pressed="${r.takeoutDays.includes(d)}">${d.slice(0,3)}</button>`).join("")}</div>
+        <span class="lede" style="font-size:13px">${r.takeoutDays.length?"Takeout is skipped on other days.":"No days picked, so takeout can come up any day."}</span></div>
+      <label class="toggle" for="rule-quick"><input type="checkbox" id="rule-quick" data-rule="quick" ${r.quickWeeknights?"checked":""}>Quick meals only, Monday to Thursday</label>
+    </div>
+    <form class="addrow" data-form="meal"><input id="meal-name" placeholder="e.g. 🍜 Ramen" maxlength="48" autocomplete="off"><select id="meal-tag" aria-label="Type"><option value="cook">Cook</option><option value="takeout">Takeout</option></select><button class="btn">Add</button></form>
+    <div class="meal-list">${S.meals.map(m=>`
+      <div class="meal">
+        <button class="mname" data-act="edit-meal" data-v="${m.id}" aria-expanded="${S.editing===m.id}">${esc(m.name)}<small>${(m.ingredients||[]).length?esc(m.ingredients.length+" ingredients"):"No ingredients yet"}</small></button>
+        <button class="ibtn" data-act="fav" data-v="${m.id}" aria-pressed="${!!m.fav}" aria-label="Favourite" title="Favourite">★</button>
+        <button class="ibtn q" data-act="quick" data-v="${m.id}" aria-pressed="${!!m.quick}" aria-label="Quick meal" title="Quick meal">⚡</button>
+        <button class="tagbtn ${m.tag==="takeout"?"out":""}" data-act="toggle-tag" data-v="${m.id}">${m.tag==="takeout"?"Takeout":"Cook"}</button>
+        <button class="x" data-act="rm-meal" data-v="${m.id}" aria-label="Remove ${esc(m.name)}">✕</button>
+        ${S.editing===m.id?`<div class="editor"><label class="label" for="ing-${m.id}">Ingredients, one per line</label>
+          <textarea id="ing-${m.id}" placeholder="Tortillas&#10;Ground beef&#10;Salsa">${esc((m.ingredients||[]).join("\n"))}</textarea>
+          <div class="row"><button class="btn sm" data-act="save-ing" data-v="${m.id}">Save ingredients</button><button class="btn sm ghost" data-act="edit-meal" data-v="${m.id}">Close</button></div></div>`:""}
+      </div>`).join("")||`<div class="meal"><span class="lede">No meals yet. Add a few above.</span></div>`}</div>
+  </section>`;
+}
+
+function viewHistory(){
+  const L=S.logs; let stats="";
+  if(L.length){
+    const c={};L.forEach(l=>c[l.meal]=(c[l.meal]||0)+1);
+    const top=Object.entries(c).sort((a,b)=>b[1]-a[1])[0];
+    const out=L.filter(l=>tagOf(l.meal)==="takeout").length;
+    stats=`<div class="stats">
+      <div class="stat"><b>${L.length}</b><span>dinners decided</span></div>
+      <div class="stat"><b>${Math.round(out/L.length*100)}%</b><span>takeout</span></div>
+      <div class="stat"><b>${esc(top[0])}</b><span>picked ${top[1]}×</span></div></div>`;
+  }
+  return `<section class="view">${S.isOwner?viewActivity():""}<h2>History</h2>${stats}
+    <div class="tickets">${L.length?L.map((l,i)=>`
+      <div class="ticket"><span class="no">#${String(L.length-i).padStart(3,"0")}</span>
+        <span class="name">${esc(l.meal)}<span class="sub">${esc(l.voters||l.by||"")}${l.day?" · for "+esc(l.day):""}</span></span>
+        <span class="when">${new Date(l.date).toLocaleDateString([], {weekday:"short",month:"short",day:"numeric"})}</span></div>`).join("")
+      :`<div class="empty">No dinners decided yet. Deal a round on the Decide tab and the winner lands here.</div>`}</div>
+    <p class="note">This page keeps a usage log (when it's opened and what's changed) that only its owner can see.</p>
+  </section>`;
+}
+function personName(a){return (S.names[a.uid]||"") || (a.events||[]).map(e=>e.as).filter(Boolean).pop() || "Someone"}
+function allEvents(){
+  return S.activity.flatMap(a=>(a.events||[]).map(e=>({...e,who:personName(a)}))).sort((x,y)=>y.t.localeCompare(x.t));
+}
+function activityTSV(){
+  const clean=v=>String(v).replace(/[\t\n]/g," ");
+  return ["Date\tTime\tPerson\tPicked as\tAction"].concat(allEvents().map(e=>{const d=new Date(e.t);
+    return [d.toLocaleDateString("en-CA"),d.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}),e.who,e.as||"",e.what].map(clean).join("\t")})).join("\n");
+}
+function viewActivity(){
+  const ev=allEvents(), people=S.activity.slice().sort((a,b)=>(b.lastSeen||"").localeCompare(a.lastSeen||""));
+  const fmt=t=>new Date(t).toLocaleString([], {weekday:"short",month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});
+  return `<div class="panel">
+    <div class="field"><h3>Family activity</h3><span class="label">Only you</span></div>
+    ${people.length?`<div class="stack">${people.map(a=>`<div class="field"><span><b>${esc(personName(a))}</b> <span class="lede" style="font-size:13px">· ${a.count||0} actions</span></span><span class="when">${esc(fmt(a.lastSeen))}</span></div>`).join("")}</div>
+    <div class="label">Latest</div>
+    <div class="stack">${ev.slice(0,15).map(e=>`<div class="field" style="align-items:flex-start"><span style="min-width:0"><b>${esc(e.who)}</b> ${esc(e.what)}</span><span class="when">${esc(fmt(e.t))}</span></div>`).join("")}</div>
+    <button class="btn" data-act="copy-activity">Copy ${ev.length} rows for Google Sheets</button>`
+    :`<p class="lede">No one has used the app yet. Visits and changes will show up here.</p>`}
+  </div>`;
+}
+
+/* ---------- Render & events ---------- */
+function render(){
+  const a=document.activeElement;
+  if(a && (a.dataset?.day || a.tagName==="TEXTAREA" || (a.tagName==="INPUT" && a.type==="text" && a.value))) { renderChrome(); return } // don't clobber typing
+  const v={decide:viewDecide,week:viewWeek,shop:viewShop,meals:viewMeals,history:viewHistory}[S.tab]||viewDecide;
+  $("#app").innerHTML=v(); renderChrome();
+}
+function renderChrome(){
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.dataset.tab===S.tab?b.setAttribute("aria-current","page"):b.removeAttribute("aria-current"));
+  const sy=$("#sync"); sy.classList.toggle("on",S.live); sy.querySelector("span").textContent=S.live?"Synced":"This device";
+}
+function copy(txt,ok){navigator.clipboard.writeText(txt).then(()=>toast(ok),()=>toast("Copy is blocked here"))}
+
+document.addEventListener("click", e=>{
+  const tab=e.target.closest("[data-tab]");
+  if(tab){S.tab=tab.dataset.tab;ls.set("wfd-tab",S.tab);document.activeElement?.blur?.();render();window.scrollTo(0,0);return}
+  const a=e.target.closest("[data-act]"); if(!a) return;
+  const v=a.dataset.v, m=S.meals.find(x=>x.id===v), r=S.rules;
+  switch(a.dataset.act){
+    case "mode": S.mode=v; ls.set("wfd-mode",v); render(); break;
+    case "deal": deal(); break;
+    case "strike": strike(v); break;
+    case "undo": undo(); break;
+    case "reset": S.game=null; render(); break;
+    case "assign": setPlanDay(a.dataset.day,v).then(ok=>ok&&toast(`Added to ${a.dataset.day}`)); break;
+    case "rm-member": saveMembers(S.members.filter(x=>x!==v)); break;
+    case "start-round": startRound(); break;
+    case "me": S.me=v; ls.set("wfd-me",v); S.myVetoes=[]; render(); break;
+    case "not-me": S.me=""; ls.set("wfd-me",""); render(); break;
+    case "veto":
+      if(S.myVetoes.includes(v)) S.myVetoes=S.myVetoes.filter(x=>x!==v);
+      else if(S.myVetoes.length<MAX_VETOES) S.myVetoes.push(v);
+      else toast(`You can veto ${MAX_VETOES}. Untick one first.`);
+      render(); break;
+    case "submit-vote": submitVote(); break;
+    case "revote": {const mine=roundVotes().find(x=>x.voter===S.me); S.myVetoes=(mine?.vetoes||[]).slice();
+      if(mine) write(db=>db.doc("votes/"+mine.id).delete(),"Couldn't reopen your vote"); break;}
+    case "cancel-round":
+      if(a.dataset.confirm){write(db=>db.doc("rounds/current").update({status:"cancelled"}),"Couldn't cancel")}
+      else {a.dataset.confirm="1";a.textContent="Tap again to cancel for everyone"}
+      break;
+    case "new-round": S.dismissed=S.round&&S.round.id; render(); break;
+    case "fill-week": fillWeek(); break;
+    case "save-preview": savePlan({...(planIsCurrent()?S.plan:{}),...S.preview}).then(ok=>{if(ok){S.preview=null;render();toast("Week saved")}}); break;
+    case "cancel-preview": S.preview=null; render(); break;
+    case "fresh-week": savePlan({}).then(ok=>ok&&toast("New week started")); break;
+    case "copy-week": copy(weekText(),"Week copied"); break;
+    case "clear-week":
+      if(a.dataset.confirm){savePlan({}).then(ok=>ok&&toast("Week cleared"))}
+      else {a.dataset.confirm="1";a.textContent="Tap again to clear";setTimeout(()=>{if(a.isConnected){a.removeAttribute("data-confirm");a.textContent="Clear week"}},3000)}
+      break;
+    case "rm-extra": e.preventDefault(); saveShop({...S.shop,extras:S.shop.extras.filter(x=>x!==v),checked:S.shop.checked.filter(x=>x!==v)}); break;
+    case "copy-shop": {const got=new Set(S.shop.checked.map(s=>s.toLowerCase()));copy("Shopping list\n"+shoppingItems().filter(i=>!got.has(i.name.toLowerCase())).map(i=>"• "+i.name).join("\n"),"List copied");break}
+    case "copy-activity": copy(activityTSV(),"Copied. Paste into cell A1 of your sheet."); break;
+    case "clear-ticks": saveShop({...S.shop,checked:[]}); break;
+    case "takeout-day": saveRules({...r,takeoutDays:r.takeoutDays.includes(v)?r.takeoutDays.filter(d=>d!==v):DAYS.filter(d=>d===v||r.takeoutDays.includes(d))}); break;
+    case "edit-meal": S.editing=S.editing===v?null:v; document.activeElement?.blur?.(); render(); break;
+    case "save-ing": {const t=$("#ing-"+v); const list=t.value.split(/\n|,/).map(s=>s.trim()).filter(Boolean); t.blur(); S.editing=null; updateMeal(v,{ingredients:list}).then(()=>toast("Ingredients saved")); render(); break}
+    case "fav": updateMeal(v,{fav:!m.fav}); break;
+    case "quick": updateMeal(v,{quick:!m.quick}); break;
+    case "toggle-tag": updateMeal(v,{tag:m.tag==="takeout"?"cook":"takeout"}); break;
+    case "rm-meal":
+      if(!a.dataset.confirm){a.dataset.confirm="1";a.textContent="?";a.setAttribute("aria-label","Tap again to remove");setTimeout(()=>{if(a.isConnected){a.removeAttribute("data-confirm");a.textContent="✕"}},2500);break}
+      track("Removed meal "+(m?m.name:""));
+      if(S.db) write(db=>db.doc("meals/"+v).delete(),"Couldn't remove that meal");
+      else {S.meals=S.meals.filter(x=>x.id!==v);render()}
+      break;
+  }
+});
+document.addEventListener("change", e=>{
+  const t=e.target;
+  if(t.id==="deal-day"){S.day=t.value;render();return}
+  if(t.dataset.rule==="quick"){saveRules({...S.rules,quickWeeknights:t.checked});return}
+  if(t.dataset.shop){const n=t.dataset.shop, c=S.shop.checked.filter(x=>x.toLowerCase()!==n.toLowerCase()); if(t.checked) c.push(n); track(`${t.checked?"Ticked":"Unticked"} ${n}`); saveShop({...S.shop,checked:c});return}
+  const d=t.dataset.day;
+  if(d){const val=t.value.trim(); const cur=planIsCurrent()?(S.plan[d]||""):""; if(cur!==val){t.blur();setPlanDay(d,val).then(ok=>ok&&toast(`${d} saved`))}}
+});
+document.addEventListener("submit", async e=>{
+  e.preventDefault();
+  const f=e.target.dataset.form;
+  if(f==="member"){const i=$("#member-name"),n=i.value.trim(); i.value=""; if(n&&!S.members.includes(n)) saveMembers([...S.members,n]); }
+  if(f==="extra"){const i=$("#extra-name"),n=i.value.trim(); i.value=""; if(n&&!S.shop.extras.some(x=>x.toLowerCase()===n.toLowerCase())) {track(`Added ${n} to shopping list`);saveShop({...S.shop,extras:[...S.shop.extras,n]}); setTimeout(()=>{const j=$("#extra-name");j&&j.focus()},0)} }
+  if(f==="meal"){
+    const i=$("#meal-name"), n=i.value.trim(), tag=$("#meal-tag").value; if(!n) return;
+    if(S.meals.some(m=>m.name.toLowerCase()===n.toLowerCase())){toast("That meal is already in the pool");return}
+    i.value=""; track("Added meal "+n);
+    if(S.db) write(db=>db.collection("meals").add({name:n,tag,quick:false,fav:false,ingredients:[],order:S.meals.length+1}),"Couldn't add that meal");
+    else {S.meals.push({id:"m"+Date.now(),name:n,tag,quick:false,fav:false,ingredients:[]});render()}
+    setTimeout(()=>{const j=$("#meal-name");j&&j.focus()},0);
+  }
+});
+
+render();
+
+/* ---------- Shared store ---------- */
+(async()=>{
+  const use=n=>window.claude?window.claude.use(n).catch(()=>null):Promise.resolve(null);
+  const [db,user]=await Promise.all([use("db"),use("user")]);
+  if(user){try{S.canPlan=await user.canEdit();S.isOwner=await user.isOwner();S.uid=await user.id()}catch(e){}}
+  if(!db){render();return}
+  S.db=db;
+  const last=+ls.get("wfd-opened","0");
+  if(Date.now()-last>30*60*1000){ls.set("wfd-opened",String(Date.now()));track("Opened the app")}
+  if(S.isOwner){
+    db.collection("activity").onSnapshot(async s=>{
+      S.activity=s.docs.map(d=>({id:d.id,...d.data()}));
+      try{const ps=await user.profiles(S.activity.map(a=>a.uid).filter(Boolean));S.names={};for(const k in ps)S.names[k]=ps[k].name||""}catch(e){}
+      render();
+    },()=>{});
+  }
+  const fail=e=>{ if(e&&e.code==="revoked"){S.live=false;render()} };
+  db.collection("meals").onSnapshot(s=>{S.live=true;S.meals=s.docs.map(d=>({id:d.id,ingredients:[],...d.data()})).sort((a,b)=>(a.order??999)-(b.order??999)||a.name.localeCompare(b.name));render()},fail);
+  db.doc("plan/week").onSnapshot(s=>{S.plan=s.exists?{...s.data()}:{};render()},fail);
+  db.doc("settings/household").onSnapshot(s=>{S.members=s.exists?(s.data().members||[]):[];render()},fail);
+  db.doc("settings/rules").onSnapshot(s=>{const d=s.exists?s.data():{};S.rules={takeoutDays:d.takeoutDays||[],quickWeeknights:!!d.quickWeeknights};render()},fail);
+  db.doc("shopping/list").onSnapshot(s=>{const d=s.exists?s.data():{};S.shop={checked:d.checked||[],extras:d.extras||[]};render()},fail);
+  db.collection("logs").orderBy("date","desc").limit(200).onSnapshot(s=>{S.logs=s.docs.map(d=>({id:d.id,...d.data()}));render()},fail);
+  db.doc("rounds/current").onSnapshot(s=>{const prev=S.round&&S.round.id;S.round=s.exists?s.data():null;if(S.round&&S.round.id!==prev)S.myVetoes=[];render();maybeFinish()},fail);
+  db.collection("votes").onSnapshot(s=>{S.votes=s.docs.map(d=>({id:d.id,...d.data()}));render();maybeFinish()},fail);
+})();
+</script>
